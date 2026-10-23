@@ -18,7 +18,11 @@ export class AudioWebSocketService {
     this.intentionallyClosed = false;
     socket.binaryType = "arraybuffer";
     socket.onopen = callbacks.onOpen;
-    socket.onerror = callbacks.onError;
+    socket.onerror = () => {
+      if (!this.intentionallyClosed) {
+        callbacks.onError();
+      }
+    };
     socket.onclose = () => {
       if (!this.intentionallyClosed) {
         callbacks.onClose();
@@ -46,6 +50,13 @@ export class AudioWebSocketService {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.send({ type: "stop" });
     }
+  }
+
+  stop(): void {
+    this.intentionallyClosed = true;
+    this.sendStop();
+    this.socket?.close();
+    this.socket = null;
   }
 
   close(): void {

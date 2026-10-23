@@ -46,8 +46,7 @@ export default function Home() {
         onChunk: (chunk) => socketService.sendChunk(chunk),
         onListening: () => setState("listening"),
         onStopped: () => {
-          socketService.sendStop();
-          socketService.close();
+          socketService.stop();
           setState("idle");
         },
         onError: (message) => setError(message),
