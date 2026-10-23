@@ -1,0 +1,17 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Backend for the interview-assistant project"
+readme = "README.md"
+authors = [
+    { name = "AJTimePyro", email = "ajtimepyro@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.161.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.2",
+]
