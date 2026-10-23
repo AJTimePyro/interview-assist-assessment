@@ -3,4 +3,4 @@ export type MicDevice = {
   label: string;
 };
 
-export type PanelState = "idle" | "listening" | "processing";
+export type PanelState = "idle" | "connecting" | "listening" | "error";

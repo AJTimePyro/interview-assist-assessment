@@ -18,6 +18,20 @@ const availableMics: MicDevice[] = [
   { deviceId: "default", label: "Default Microphone" },
 ];
 
+const buttonLabels: Record<PanelState, string> = {
+  idle: "Start Listening",
+  connecting: "Connecting...",
+  listening: "Stop Listening",
+  error: "Start Listening",
+};
+
+const buttonStateClasses: Record<PanelState, string> = {
+  idle: "bg-blue-600 text-white hover:bg-blue-700",
+  connecting: "bg-blue-600 text-white hover:bg-blue-700 cursor-wait opacity-60",
+  listening: "bg-red-100 text-red-800",
+  error: "bg-blue-600 text-white hover:bg-blue-700",
+};
+
 export function Controls({
   resume,
   setResume,
@@ -93,16 +107,10 @@ export function Controls({
         <button
           type="button"
           onClick={onToggleListening}
-          className={
-            "w-full py-3 px-4 rounded-md font-medium transition-colors " +
-            (state === "listening"
-              ? "bg-red-100 text-red-800"
-              : "bg-blue-600 text-white hover:bg-blue-700") +
-            (state !== "idle" ? "cursor-not-allowed opacity-60" : "")
-          }
-          disabled={state !== "idle"}
+          className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${buttonStateClasses[state]}`}
+          disabled={state === "connecting"}
         >
-          {state === "listening" ? "Stop Listening" : "Start Listening"}
+          {buttonLabels[state]}
         </button>
       </div>
 
