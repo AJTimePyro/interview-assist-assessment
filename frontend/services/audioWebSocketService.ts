@@ -2,6 +2,13 @@ type AudioWebSocketCallbacks = {
   onOpen: () => void;
   onError: () => void;
   onClose: () => void;
+  onInterim: (text: string) => void;
+  onFinal: (text: string) => void;
+};
+
+type ServerMessage = {
+  type: string;
+  text?: string;
 };
 
 export class AudioWebSocketService {
@@ -18,6 +25,14 @@ export class AudioWebSocketService {
     this.intentionallyClosed = false;
     socket.binaryType = "arraybuffer";
     socket.onopen = callbacks.onOpen;
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data as string) as ServerMessage;
+      if (message.type === "final" && message.text) {
+        callbacks.onFinal(message.text);
+      } else if (message.type === "interim" && message.text) {
+        callbacks.onInterim(message.text);
+      }
+    };
     socket.onerror = () => {
       if (!this.intentionallyClosed) {
         callbacks.onError();
@@ -34,29 +49,21 @@ export class AudioWebSocketService {
   sendStart(): void {
     this.send({
       type: "start",
-      audio_format: "webm",
-      codec: "opus",
-      timeslice_ms: 250,
+      audio_format: "pcm_s16le",
+      sample_rate: 16000,
+      channels: 1,
     });
   }
 
-  sendChunk(chunk: Blob): void {
+  sendChunk(chunk: ArrayBuffer): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(chunk);
     }
   }
 
-  sendStop(): void {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.send({ type: "stop" });
-    }
-  }
-
   stop(): void {
     this.intentionallyClosed = true;
-    this.sendStop();
-    this.socket?.close();
-    this.socket = null;
+    this.send({ type: "stop" });
   }
 
   close(): void {
@@ -66,6 +73,8 @@ export class AudioWebSocketService {
   }
 
   private send(message: Record<string, string | number>): void {
-    this.socket?.send(JSON.stringify(message));
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
+    }
   }
 }

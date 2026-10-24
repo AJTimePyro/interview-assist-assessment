@@ -6,16 +6,15 @@ import { LiveFeedBackPanel } from "@/components/LiveFeedBackPanel";
 import { StatusIndicator } from "@/components/StatusIndicator";
 import { AudioStreamService } from "@/services/audioStreamService";
 import { AudioWebSocketService } from "@/services/audioWebSocketService";
-import type { MicDevice, PanelState } from "./type";
-
-const EMPTY_TRANSCRIPT: string[] = [];
+import type { MicDevice, PanelState, TranscriptLine } from "./type";
 
 export default function Home() {
   const [resume, setResume] = useState("");
   const [jobDesc, setJobDesc] = useState("");
   const [selectedMic, setSelectedMic] = useState<MicDevice | null>(null);
   const [state, setState] = useState<PanelState>("idle");
-  const transcript = EMPTY_TRANSCRIPT;
+  const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
+  const [interim, setInterim] = useState("");
   const detectedQuestion = "";
   const suggestedAnswer = "";
   const [errorMessage, setErrorMessage] = useState("");
@@ -35,8 +34,17 @@ export default function Home() {
   const setError = (message: string) => {
     audioService.dispose();
     socketService.close();
+    setInterim("");
     setErrorMessage(message);
     setState("error");
+  };
+
+  const appendFinalTranscript = (text: string) => {
+    setInterim("");
+    setTranscript((previous) => [
+      ...previous,
+      { id: crypto.randomUUID(), text },
+    ]);
   };
 
   const startAudio = () => {
@@ -46,6 +54,7 @@ export default function Home() {
         onChunk: (chunk) => socketService.sendChunk(chunk),
         onListening: () => setState("listening"),
         onStopped: () => {
+          setInterim("");
           socketService.stop();
           setState("idle");
         },
@@ -69,6 +78,8 @@ export default function Home() {
         onOpen: startAudio,
         onError: () => setError("Unable to connect to the audio server."),
         onClose: () => setError("The audio server disconnected."),
+        onInterim: setInterim,
+        onFinal: appendFinalTranscript,
       });
     } catch (error) {
       setError(
@@ -119,6 +130,7 @@ export default function Home() {
       <StatusIndicator state={state} errorMessage={errorMessage} />
       <LiveFeedBackPanel
         transcript={transcript}
+        interim={interim}
         detectedQuestion={detectedQuestion}
         suggestedAnswer={suggestedAnswer}
       />

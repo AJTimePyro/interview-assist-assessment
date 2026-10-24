@@ -1,13 +1,17 @@
 "use client";
 
+import type { TranscriptLine } from "@/app/type";
+
 type LiveFeedBackPanelProps = {
-  transcript: string[];
+  transcript: TranscriptLine[];
+  interim: string;
   detectedQuestion: string;
   suggestedAnswer: string;
 };
 
 export function LiveFeedBackPanel({
   transcript,
+  interim,
   detectedQuestion,
   suggestedAnswer,
 }: LiveFeedBackPanelProps) {
@@ -24,10 +28,11 @@ export function LiveFeedBackPanel({
             </p>
           )}
           {transcript.map((line) => (
-            <p key={line} className="text-sm text-gray-700">
-              {line}
+            <p key={line.id} className="text-sm text-gray-700">
+              {line.text}
             </p>
           ))}
+          {interim && <p className="text-sm text-gray-400 italic">{interim}</p>}
         </div>
       </div>
 
