@@ -6,6 +6,9 @@ import uuid
 from fastapi import WebSocket, WebSocketDisconnect
 from vosk import KaldiRecognizer
 
+from services.assistant import InterviewContext
+from services.orchestrator import AssistantOrchestrator
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,6 +17,7 @@ class AudioStreamSession:
         self.session_id = uuid.uuid4().hex[:8]
         self._websocket = websocket
         self._stream = stream
+        self._orchestrator: AssistantOrchestrator | None = None
         self._disconnected = False
         self._last_partial = ""
         self.chunk_count = 0
@@ -25,7 +29,23 @@ class AudioStreamSession:
             logger.info("Audio stop requested [%s]", self.session_id)
             return True
 
-        logger.info("Audio session started [%s]", self.session_id)
+        if self._orchestrator is not None:
+            logger.warning("Ignoring duplicate start [%s]", self.session_id)
+            return False
+
+        context = InterviewContext(
+            resume=str(payload.get("resume") or ""),
+            job_description=str(payload.get("job_description") or ""),
+        )
+        self._orchestrator = AssistantOrchestrator(self._send_json, context)
+        self._orchestrator.start()
+
+        logger.info(
+            "Audio session started [%s]: resume_chars=%d jd_chars=%d",
+            self.session_id,
+            len(context.resume),
+            len(context.job_description),
+        )
         return False
 
     async def handle_audio_chunk(self, chunk: bytes) -> None:
@@ -39,8 +59,8 @@ class AudioStreamSession:
 
         if result_type == "final":
             await self._emit_final(text)
-
-            # TODO: Call your question detector here
+            if self._orchestrator is not None:
+                self._orchestrator.on_final(text)
 
         elif text != self._last_partial:
             # Only send & debug-log when the interim phrase actually changes
@@ -49,6 +69,9 @@ class AudioStreamSession:
             await self._send_json({"type": "interim", "text": text})
 
     async def finalize(self) -> None:
+        if self._orchestrator is not None:
+            await self._orchestrator.close()
+
         text = await asyncio.to_thread(self._final_result)
 
         if text:
