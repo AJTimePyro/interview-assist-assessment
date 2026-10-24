@@ -11,6 +11,8 @@ const indicatorColors: Record<PanelState, string> = {
   idle: "bg-gray-400",
   connecting: "bg-yellow-500",
   listening: "bg-red-600",
+  thinking: "bg-amber-500",
+  answering: "bg-green-600",
   error: "bg-red-600",
 };
 
@@ -18,6 +20,8 @@ const statusLabels: Record<Exclude<PanelState, "error">, string> = {
   idle: "Idle",
   connecting: "Connecting...",
   listening: "Listening...",
+  thinking: "Thinking...",
+  answering: "Answering...",
 };
 
 export function StatusIndicator({ state, errorMessage }: StatusIndicatorProps) {

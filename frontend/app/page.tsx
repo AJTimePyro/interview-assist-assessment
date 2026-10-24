@@ -6,7 +6,13 @@ import { LiveFeedBackPanel } from "@/components/LiveFeedBackPanel";
 import { StatusIndicator } from "@/components/StatusIndicator";
 import { AudioStreamService } from "@/services/audioStreamService";
 import { AudioWebSocketService } from "@/services/audioWebSocketService";
-import type { MicDevice, PanelState, TranscriptLine } from "./type";
+import type {
+  AnswerMetrics,
+  DetectedQuestion,
+  MicDevice,
+  PanelState,
+  TranscriptLine,
+} from "./type";
 
 export default function Home() {
   const [resume, setResume] = useState("");
@@ -15,8 +21,12 @@ export default function Home() {
   const [state, setState] = useState<PanelState>("idle");
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [interim, setInterim] = useState("");
-  const detectedQuestion = "";
-  const suggestedAnswer = "";
+  const [question, setQuestion] = useState<DetectedQuestion | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [answerMetrics, setAnswerMetrics] = useState<AnswerMetrics | null>(
+    null,
+  );
+  const [answerError, setAnswerError] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const audioServiceRef = useRef<AudioStreamService | null>(null);
   const socketServiceRef = useRef<AudioWebSocketService | null>(null);
@@ -30,6 +40,7 @@ export default function Home() {
 
   const audioService = audioServiceRef.current;
   const socketService = socketServiceRef.current;
+  const contextReady = resume.trim() !== "" && jobDesc.trim() !== "";
 
   const setError = (message: string) => {
     audioService.dispose();
@@ -48,7 +59,7 @@ export default function Home() {
   };
 
   const startAudio = () => {
-    socketService.sendStart();
+    socketService.sendStart(resume, jobDesc);
     void audioService
       .start(selectedMic?.deviceId, {
         onChunk: (chunk) => socketService.sendChunk(chunk),
@@ -71,6 +82,10 @@ export default function Home() {
 
   const startListening = () => {
     setErrorMessage("");
+    setQuestion(null);
+    setAnswer("");
+    setAnswerMetrics(null);
+    setAnswerError("");
     setState("connecting");
 
     try {
@@ -80,6 +95,33 @@ export default function Home() {
         onClose: () => setError("The audio server disconnected."),
         onInterim: setInterim,
         onFinal: appendFinalTranscript,
+        onQuestion: (detected) => {
+          setQuestion(detected);
+          setAnswer("");
+          setAnswerMetrics(null);
+          setAnswerError("");
+          setState("thinking");
+        },
+        onAnswerDelta: (text) => {
+          setAnswer((previous) => previous + text);
+          setState((current) =>
+            current === "idle" || current === "error" ? current : "answering",
+          );
+        },
+        onAnswerDone: setAnswerMetrics,
+        onAssistantError: setAnswerError,
+        onStatus: (status) => {
+          setState((current) => {
+            if (
+              current === "idle" ||
+              current === "connecting" ||
+              current === "error"
+            ) {
+              return current;
+            }
+            return status === "thinking" ? current : status;
+          });
+        },
       });
     } catch (error) {
       setError(
@@ -91,9 +133,13 @@ export default function Home() {
   };
 
   const toggleListening = () => {
-    if (state === "listening") {
+    if (
+      state === "listening" ||
+      state === "thinking" ||
+      state === "answering"
+    ) {
       audioService.stop();
-    } else if (state === "idle" || state === "error") {
+    } else if ((state === "idle" || state === "error") && contextReady) {
       startListening();
     }
   };
@@ -123,6 +169,7 @@ export default function Home() {
           selectedMic={selectedMic}
           setSelectedMic={setSelectedMic}
           state={state}
+          canStart={contextReady}
           onToggleListening={toggleListening}
         />
       </div>
@@ -131,8 +178,10 @@ export default function Home() {
       <LiveFeedBackPanel
         transcript={transcript}
         interim={interim}
-        detectedQuestion={detectedQuestion}
-        suggestedAnswer={suggestedAnswer}
+        question={question}
+        answer={answer}
+        answerMetrics={answerMetrics}
+        answerError={answerError}
       />
     </main>
   );

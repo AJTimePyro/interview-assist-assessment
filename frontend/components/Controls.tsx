@@ -11,6 +11,7 @@ type ControlsProps = {
   selectedMic: MicDevice | null;
   setSelectedMic: Dispatch<SetStateAction<MicDevice | null>>;
   state: PanelState;
+  canStart: boolean;
   onToggleListening: () => void;
 };
 
@@ -22,6 +23,8 @@ const buttonLabels: Record<PanelState, string> = {
   idle: "Start Listening",
   connecting: "Connecting...",
   listening: "Stop Listening",
+  thinking: "Stop Listening",
+  answering: "Stop Listening",
   error: "Start Listening",
 };
 
@@ -29,6 +32,8 @@ const buttonStateClasses: Record<PanelState, string> = {
   idle: "bg-blue-600 text-white hover:bg-blue-700",
   connecting: "bg-blue-600 text-white hover:bg-blue-700 cursor-wait opacity-60",
   listening: "bg-red-100 text-red-800",
+  thinking: "bg-red-100 text-red-800",
+  answering: "bg-red-100 text-red-800",
   error: "bg-blue-600 text-white hover:bg-blue-700",
 };
 
@@ -40,8 +45,12 @@ export function Controls({
   selectedMic,
   setSelectedMic,
   state,
+  canStart,
   onToggleListening,
 }: ControlsProps) {
+  const isStartMode = state === "idle" || state === "error";
+  const isDisabled = state === "connecting" || (isStartMode && !canStart);
+
   return (
     <section className="p-6 space-y-4">
       <div>
@@ -49,7 +58,7 @@ export function Controls({
           className="block text-sm font-medium text-gray-700 mb-2"
           htmlFor="resume"
         >
-          Resume
+          Resume <span className="text-red-500">*</span>
         </label>
         <textarea
           id="resume"
@@ -66,7 +75,7 @@ export function Controls({
           className="block text-sm font-medium text-gray-700 mb-2"
           htmlFor="job-desc"
         >
-          Job Description
+          Job Description <span className="text-red-500">*</span>
         </label>
         <textarea
           id="job-desc"
@@ -107,11 +116,16 @@ export function Controls({
         <button
           type="button"
           onClick={onToggleListening}
-          className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${buttonStateClasses[state]}`}
-          disabled={state === "connecting"}
+          className={`w-full py-3 px-4 rounded-md font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${buttonStateClasses[state]}`}
+          disabled={isDisabled}
         >
           {buttonLabels[state]}
         </button>
+        {isStartMode && !canStart && (
+          <p className="mt-2 text-xs text-red-600">
+            Add your resume and the job description to start listening.
+          </p>
+        )}
       </div>
 
       <div>

@@ -1,19 +1,35 @@
 "use client";
 
-import type { TranscriptLine } from "@/app/type";
+import type {
+  AnswerMetrics,
+  DetectedQuestion,
+  QuestionType,
+  TranscriptLine,
+} from "@/app/type";
 
 type LiveFeedBackPanelProps = {
   transcript: TranscriptLine[];
   interim: string;
-  detectedQuestion: string;
-  suggestedAnswer: string;
+  question: DetectedQuestion | null;
+  answer: string;
+  answerMetrics: AnswerMetrics | null;
+  answerError: string;
+};
+
+const questionTypeClasses: Record<QuestionType, string> = {
+  technical: "bg-blue-100 text-blue-700",
+  behavioral: "bg-purple-100 text-purple-700",
+  hr: "bg-gray-200 text-gray-700",
+  smalltalk: "bg-gray-100 text-gray-500",
 };
 
 export function LiveFeedBackPanel({
   transcript,
   interim,
-  detectedQuestion,
-  suggestedAnswer,
+  question,
+  answer,
+  answerMetrics,
+  answerError,
 }: LiveFeedBackPanelProps) {
   return (
     <section className="flex w-full justify-around">
@@ -41,10 +57,17 @@ export function LiveFeedBackPanel({
           Detected Question
         </h2>
         <div>
-          {detectedQuestion ? (
-            <p className="text-sm text-gray-800 break-all">
-              {detectedQuestion}
-            </p>
+          {question ? (
+            <>
+              <span
+                className={`inline-block rounded px-2 py-0.5 text-xs font-medium uppercase ${questionTypeClasses[question.type]}`}
+              >
+                {question.type}
+              </span>
+              <p className="mt-2 text-sm text-gray-800 wrap-break-word">
+                {question.text}
+              </p>
+            </>
           ) : (
             <p className="text-sm text-gray-400">No question detected yet.</p>
           )}
@@ -56,10 +79,21 @@ export function LiveFeedBackPanel({
           Suggested Answer
         </h2>
         <div>
-          {suggestedAnswer ? (
-            <p className="text-sm text-gray-700 break-all">{suggestedAnswer}</p>
+          {answerError ? (
+            <p className="text-sm text-red-600">{answerError}</p>
+          ) : answer ? (
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              {answer}
+            </p>
           ) : (
             <p className="text-sm text-gray-400">Answer will appear here.</p>
+          )}
+          {answerMetrics && (
+            <p className="mt-3 text-xs text-gray-400">
+              classify {answerMetrics.classifyMs} ms · first token{" "}
+              {answerMetrics.firstTokenMs ?? "—"} ms · total{" "}
+              {answerMetrics.totalMs} ms
+            </p>
           )}
         </div>
       </div>
