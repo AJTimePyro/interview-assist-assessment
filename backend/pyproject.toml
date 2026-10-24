@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "fastapi[standard]>=0.161.1",
+    "langchain-ollama>=1.1.0",
     "vosk>=0.3.45",
 ]
 
