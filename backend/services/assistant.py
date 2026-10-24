@@ -54,13 +54,17 @@ Rules:
 - Answer the question that was asked, not the question the resume suggests.
 - How-would-you-design/build/scale questions: give your approach first, then key components
   and one trade-off. Do not turn it into a summary of your resume.
-- Background and behavioral questions: answer with specific resume evidence.
+- Background and behavioral questions: answer with specific resume evidence. If the resume has
+  no matching situation, describe your general approach instead of inventing an event.
+- If the question asks for a specific past event that the resume does not describe, start with
+  "I don't have a specific example in my resume, but generally I ..." and give your approach.
+  Do not narrate an event that is not written in the resume.
 - Output 3-5 bullet points, one per line, each line starting with "- ".
 - Each bullet is one short sentence of at most 15 words.
 - No intro sentence, no closing sentence, no headings, no paragraph prose.
 - Hard limit: 80 words total. Fewer, sharper bullets beat more.
 - Keep numbers, durations and job titles exactly as written in the resume; never round them.
-- Never invent employers, titles, dates or metrics that are not in the resume.
+- Never invent employers, titles, dates, metrics or stories that are not in the resume.
 - If the resume lacks something, answer from general experience without fabricating."""
 
 
