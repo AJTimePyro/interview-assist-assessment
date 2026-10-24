@@ -9,6 +9,9 @@ from services.assistant import InterviewContext, detect_question, stream_answer
 logger = logging.getLogger(__name__)
 
 DEBOUNCE_SECONDS = 0.3
+DETECT_TIMEOUT_SECONDS = 8.0
+ANSWER_TIMEOUT_SECONDS = 30.0
+ERROR_THROTTLE_SECONDS = 30.0
 TAIL_CHARS = 300
 TAIL_UTTERANCES = 4
 SIMILARITY_THRESHOLD = 0.85
@@ -26,6 +29,7 @@ class AssistantOrchestrator:
         self._prewarm_task: asyncio.Task[None] | None = None
         self._last_question = ""
         self._speech_end_at: float
+        self._last_error_at = float("-inf")
 
     def start(self) -> None:
         """Load the model and cache the context prompt before the first question."""
@@ -72,7 +76,13 @@ class AssistantOrchestrator:
         endpoint_ms = max(0, round((started - speech_end_at) * 1000))
         await self._emit({"type": "status", "state": "thinking"})
 
-        decision = await detect_question(transcript)
+        try:
+            async with asyncio.timeout(DETECT_TIMEOUT_SECONDS):
+                decision = await detect_question(transcript)
+        except Exception:  # noqa: BLE001
+            await self._fail("Assistant unavailable — still listening.")
+            return
+
         classify_ms = round((time.perf_counter() - started) * 1000)
 
         if decision is None or self._is_duplicate(decision.question):
@@ -106,18 +116,15 @@ class AssistantOrchestrator:
         e2e_ms: int | None = None
 
         try:
-            async for delta in stream_answer(self._context, question):
-                if first_token_ms is None:
-                    now = time.perf_counter()
-                    first_token_ms = round((now - started) * 1000)
-                    e2e_ms = round((now - speech_end_at) * 1000)
-                await self._emit({"type": "answer_delta", "text": delta})
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Answer generation failed")
-            await self._emit({"type": "error", "message": "Answer generation failed."})
-            await self._emit({"type": "status", "state": "listening"})
+            async with asyncio.timeout(ANSWER_TIMEOUT_SECONDS):
+                async for delta in stream_answer(self._context, question):
+                    if first_token_ms is None:
+                        now = time.perf_counter()
+                        first_token_ms = round((now - started) * 1000)
+                        e2e_ms = round((now - speech_end_at) * 1000)
+                    await self._emit({"type": "answer_delta", "text": delta})
+        except Exception:  # noqa: BLE001
+            await self._fail("Answer generation failed — still listening.")
             return False
 
         await self._emit(
@@ -132,6 +139,15 @@ class AssistantOrchestrator:
         )
         await self._emit({"type": "status", "state": "listening"})
         return True
+
+    async def _fail(self, message: str) -> None:
+        """Report a failure without spamming the socket on every utterance."""
+        now = time.perf_counter()
+        if now - self._last_error_at >= ERROR_THROTTLE_SECONDS:
+            self._last_error_at = now
+            logger.error(message)
+            await self._emit({"type": "error", "message": message})
+        await self._emit({"type": "status", "state": "listening"})
 
     async def _prewarm(self) -> None:
         try:

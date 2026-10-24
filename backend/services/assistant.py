@@ -1,13 +1,10 @@
-import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Literal, cast
 
 from pydantic import BaseModel, Field
 
 from core.llm import answer_llm, classifier_llm
-
-logger = logging.getLogger(__name__)
 
 MAX_CONTEXT_CHARS = 4000
 MIN_QUESTION_WORDS = 3
@@ -99,11 +96,7 @@ async def detect_question(transcript_tail: str) -> QuestionDecision | None:
         ("human", f"Transcript:\n{transcript_tail}"),
     ]
 
-    try:
-        decision = cast(QuestionDecision, await classifier.ainvoke(messages))
-    except Exception:
-        logger.exception("Question detection failed")
-        return None
+    decision = cast(QuestionDecision, await classifier.ainvoke(messages))
 
     if not decision.is_question or decision.type == "smalltalk":
         return None
@@ -115,7 +108,7 @@ async def detect_question(transcript_tail: str) -> QuestionDecision | None:
 async def stream_answer(
     context: InterviewContext,
     question: str,
-) -> AsyncIterator[str]:
+) -> AsyncGenerator[str, None]:
     """Yield answer text deltas as the model produces them."""
     messages = build_answer_messages(context, question)
     async for chunk in answer_llm.astream(messages):
