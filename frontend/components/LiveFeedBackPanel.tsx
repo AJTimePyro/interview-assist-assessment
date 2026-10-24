@@ -89,11 +89,20 @@ export function LiveFeedBackPanel({
             <p className="text-sm text-gray-400">Answer will appear here.</p>
           )}
           {answerMetrics && (
-            <p className="mt-3 text-xs text-gray-400">
-              classify {answerMetrics.classifyMs} ms · first token{" "}
-              {answerMetrics.firstTokenMs ?? "—"} ms · total{" "}
-              {answerMetrics.totalMs} ms
-            </p>
+            <div className="mt-3 text-xs text-gray-400">
+              <p>
+                question → answer{" "}
+                <span className="font-medium text-gray-600">
+                  {answerMetrics.e2eMs ?? "—"} ms
+                </span>
+              </p>
+              <p className="mt-1">
+                endpoint {answerMetrics.endpointMs} ms · classify{" "}
+                {answerMetrics.classifyMs} ms · first token{" "}
+                {answerMetrics.firstTokenMs ?? "—"} ms · total{" "}
+                {answerMetrics.totalMs} ms
+              </p>
+            </div>
           )}
         </div>
       </div>

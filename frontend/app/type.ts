@@ -24,8 +24,10 @@ export type DetectedQuestion = {
 };
 
 export type AnswerMetrics = {
+  endpointMs: number;
   classifyMs: number;
   firstTokenMs: number | null;
+  e2eMs: number | null;
   totalMs: number;
 };
 

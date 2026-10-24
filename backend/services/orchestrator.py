@@ -8,7 +8,7 @@ from services.assistant import InterviewContext, detect_question, stream_answer
 
 logger = logging.getLogger(__name__)
 
-DEBOUNCE_SECONDS = 0.5
+DEBOUNCE_SECONDS = 0.3
 TAIL_CHARS = 300
 TAIL_UTTERANCES = 4
 SIMILARITY_THRESHOLD = 0.85
@@ -25,15 +25,20 @@ class AssistantOrchestrator:
         self._answer_task: asyncio.Task[None] | None = None
         self._prewarm_task: asyncio.Task[None] | None = None
         self._last_question = ""
+        self._speech_end_at: float
 
     def start(self) -> None:
         """Load the model and cache the context prompt before the first question."""
         self._prewarm_task = asyncio.create_task(self._prewarm())
 
-    def on_final(self, text: str) -> None:
+    def on_final(self, text: str, speech_end_at: float | None = None) -> None:
         """Called from the audio loop; schedules detection and returns immediately."""
         self._tail.append(text)
         del self._tail[:-TAIL_UTTERANCES]
+        self._speech_end_at = speech_end_at or time.perf_counter()
+
+        if self._prewarm_task is not None and not self._prewarm_task.done():
+            self._prewarm_task.cancel()
 
         if self._debounce is not None:
             self._debounce.cancel()
@@ -62,7 +67,9 @@ class AssistantOrchestrator:
 
     async def _handle_tail(self) -> None:
         transcript = " ".join(self._tail)[-TAIL_CHARS:]
+        speech_end_at = self._speech_end_at
         started = time.perf_counter()
+        endpoint_ms = max(0, round((started - speech_end_at) * 1000))
         await self._emit({"type": "status", "state": "thinking"})
 
         decision = await detect_question(transcript)
@@ -78,22 +85,32 @@ class AssistantOrchestrator:
                 "type": "question",
                 "text": decision.question,
                 "question_type": decision.type,
-                "classify_ms": classify_ms,
             }
         )
         await self._emit({"type": "status", "state": "answering"})
-        completed = await self._stream_answer(decision.question)
+        completed = await self._stream_answer(
+            decision.question, speech_end_at, endpoint_ms, classify_ms
+        )
         if not completed and self._last_question == decision.question:
             self._last_question = ""
 
-    async def _stream_answer(self, question: str) -> bool:
+    async def _stream_answer(
+        self,
+        question: str,
+        speech_end_at: float,
+        endpoint_ms: int,
+        classify_ms: int,
+    ) -> bool:
         started = time.perf_counter()
         first_token_ms: int | None = None
+        e2e_ms: int | None = None
 
         try:
             async for delta in stream_answer(self._context, question):
                 if first_token_ms is None:
-                    first_token_ms = round((time.perf_counter() - started) * 1000)
+                    now = time.perf_counter()
+                    first_token_ms = round((now - started) * 1000)
+                    e2e_ms = round((now - speech_end_at) * 1000)
                 await self._emit({"type": "answer_delta", "text": delta})
         except asyncio.CancelledError:
             raise
@@ -106,7 +123,10 @@ class AssistantOrchestrator:
         await self._emit(
             {
                 "type": "answer_done",
+                "endpoint_ms": endpoint_ms,
+                "classify_ms": classify_ms,
                 "first_token_ms": first_token_ms,
+                "e2e_ms": e2e_ms,
                 "total_ms": round((time.perf_counter() - started) * 1000),
             }
         )

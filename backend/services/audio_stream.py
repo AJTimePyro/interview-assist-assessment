@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
+import time
 import uuid
+from array import array
 
 from fastapi import WebSocket, WebSocketDisconnect
 from vosk import KaldiRecognizer
@@ -11,6 +13,18 @@ from services.orchestrator import AssistantOrchestrator
 
 logger = logging.getLogger(__name__)
 
+SPEECH_PEAK_THRESHOLD = 500
+
+
+def _has_voice(chunk: bytes) -> bool:
+    """Cheap peak check so we can timestamp the end of speech, not the end of the socket."""
+    usable = chunk[: len(chunk) - (len(chunk) % 2)]
+    if not usable:
+        return False
+    samples = array("h")
+    samples.frombytes(usable)
+    return max(abs(sample) for sample in samples) >= SPEECH_PEAK_THRESHOLD
+
 
 class AudioStreamSession:
     def __init__(self, websocket: WebSocket, stream: KaldiRecognizer) -> None:
@@ -18,6 +32,7 @@ class AudioStreamSession:
         self._websocket = websocket
         self._stream = stream
         self._orchestrator: AssistantOrchestrator | None = None
+        self._speech_end_at: float | None = None
         self._disconnected = False
         self._last_partial = ""
         self.chunk_count = 0
@@ -52,15 +67,20 @@ class AudioStreamSession:
         self.chunk_count += 1
         self.total_bytes += len(chunk)
 
+        if _has_voice(chunk):
+            self._speech_end_at = time.perf_counter()
+
         result_type, text = await asyncio.to_thread(self._process_chunk, chunk)
 
         if not text:
             return
 
         if result_type == "final":
+            speech_end_at = self._speech_end_at
+            self._speech_end_at = None
             await self._emit_final(text)
             if self._orchestrator is not None:
-                self._orchestrator.on_final(text)
+                self._orchestrator.on_final(text, speech_end_at)
 
         elif text != self._last_partial:
             # Only send & debug-log when the interim phrase actually changes

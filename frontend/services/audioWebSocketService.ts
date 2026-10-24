@@ -24,7 +24,9 @@ type ServerMessage = {
   message?: string;
   question_type?: QuestionType;
   classify_ms?: number;
+  endpoint_ms?: number;
   first_token_ms?: number | null;
+  e2e_ms?: number | null;
   total_ms?: number;
   state?: AssistantStatus;
 };
@@ -112,8 +114,10 @@ export class AudioWebSocketService {
         break;
       case "answer_done":
         callbacks.onAnswerDone({
+          endpointMs: message.endpoint_ms ?? 0,
           classifyMs: message.classify_ms ?? 0,
           firstTokenMs: message.first_token_ms ?? null,
+          e2eMs: message.e2e_ms ?? null,
           totalMs: message.total_ms ?? 0,
         });
         break;
