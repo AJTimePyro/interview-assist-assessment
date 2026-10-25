@@ -152,15 +152,15 @@ export default function Home() {
   }, [audioService, socketService]);
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-8 flex flex-col items-center justify-center">
-      <header className="p-6">
-        <h1 className="text-2xl font-semibold text-gray-900">
+    <main className="min-h-screen bg-gray-50 p-3 md:p-5 flex flex-col items-center justify-between lg:max-h-screen lg:overflow-hidden overflow-y-auto">
+      <header className="py-1 text-center shrink-0">
+        <h1 className="text-xl md:text-2xl font-semibold text-gray-900 tracking-tight">
           Real-Time Interview Assistant
         </h1>
-        <p className="text-sm text-gray-500">UI Foundation</p>
+        <p className="text-xs text-gray-500">UI Foundation</p>
       </header>
 
-      <div className="bg-white rounded-xl shadow-sm max-w-2xl w-full space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 max-w-3xl w-full shrink-0">
         <Controls
           resume={resume}
           setResume={setResume}
@@ -174,15 +174,20 @@ export default function Home() {
         />
       </div>
 
-      <StatusIndicator state={state} errorMessage={errorMessage} />
-      <LiveFeedBackPanel
-        transcript={transcript}
-        interim={interim}
-        question={question}
-        answer={answer}
-        answerMetrics={answerMetrics}
-        answerError={answerError}
-      />
+      <div className="shrink-0 py-1.5">
+        <StatusIndicator state={state} errorMessage={errorMessage} />
+      </div>
+
+      <div className="w-full px-2 sm:px-4 lg:px-8 flex-1 min-h-0 flex flex-col pb-2">
+        <LiveFeedBackPanel
+          transcript={transcript}
+          interim={interim}
+          question={question}
+          answer={answer}
+          answerMetrics={answerMetrics}
+          answerError={answerError}
+        />
+      </div>
     </main>
   );
 }

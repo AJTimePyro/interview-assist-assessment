@@ -33,14 +33,14 @@ export function StatusIndicator({ state, errorMessage }: StatusIndicatorProps) {
   const is_bounce = state === "idle" || state === "error";
 
   return (
-    <section className="p-6 border-t border-gray-200">
-      <div className="flex items-center gap-3">
+    <section className="py-1">
+      <div className="flex items-center gap-2">
         <div
           className={`w-2 h-2 rounded-full ${indicatorColors[state]} ${
             is_bounce ? "animate-bounce" : ""
           }`}
         />
-        <span className="text-sm text-gray-600">{statusLabel}</span>
+        <span className="text-xs font-medium text-gray-500">{statusLabel}</span>
       </div>
     </section>
   );
