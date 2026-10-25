@@ -1,4 +1,5 @@
 import logging
+import os
 
 import vosk
 
@@ -9,9 +10,14 @@ logger = logging.getLogger(__name__)
 
 TARGET_SAMPLE_RATE = 16000
 MODEL_NAME = "vosk-model-small-en-in-0.4"
+MODEL_PATH = os.getenv("VOSK_MODEL_PATH")
 
 logger.info("Loading Vosk model...")
-MODEL = vosk.Model(model_name=MODEL_NAME)
+MODEL = (
+    vosk.Model(model_path=MODEL_PATH)
+    if MODEL_PATH
+    else vosk.Model(model_name=MODEL_NAME)
+)
 logger.info("Vosk model ready")
 
 
